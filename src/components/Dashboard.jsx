@@ -15,14 +15,13 @@ const THEME_COLORS = {
 };
 
 function buildProfileChart(subjects, assessmentEntries) {
+  // Build running EWMA per subject keyed by date
   const subjectEWMAByDate = {};
-
   subjects.forEach(subj => {
     subjectEWMAByDate[subj.id] = {};
     const sorted = assessmentEntries
       .filter(e => e.subjectId === subj.id)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-
     let ewma = null;
     sorted.forEach(e => {
       const alpha = Math.min(0.45 * e.weight, 0.85);
@@ -33,16 +32,15 @@ function buildProfileChart(subjects, assessmentEntries) {
 
   const allDates = [...new Set(assessmentEntries.map(e => e.date))].sort();
 
+  // Each data point = average EWMA across all subjects that have data so far
   return allDates.map(date => {
-    const row = { date };
-    subjects.forEach(subj => {
+    const vals = subjects.map(subj => {
       const prior = Object.keys(subjectEWMAByDate[subj.id]).filter(d => d <= date).sort();
-      if (prior.length > 0) {
-        row[subj.name] = subjectEWMAByDate[subj.id][prior[prior.length - 1]];
-      }
-    });
-    return row;
-  });
+      return prior.length > 0 ? subjectEWMAByDate[subj.id][prior[prior.length - 1]] : null;
+    }).filter(v => v !== null);
+    const avg = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
+    return { date, avg };
+  }).filter(d => d.avg !== null);
 }
 
 function SubjectCard({ subject, analytics, onSelect }) {
@@ -175,17 +173,13 @@ function ProfileChart({ subjects, assessmentEntries }) {
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl px-4 py-3 text-xs space-y-1.5 min-w-44">
-        <p className="font-semibold text-slate-600 dark:text-slate-300 mb-2">{label}</p>
-        {payload.map(p => (
-          <div key={p.name} className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-              <span className="text-slate-700 dark:text-slate-300 truncate max-w-28">{p.name}</span>
-            </div>
-            <span className="font-bold" style={{ color: p.color }}>{p.value?.toFixed(1)}%</span>
-          </div>
-        ))}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl px-4 py-3 text-xs min-w-40">
+        <p className="font-semibold text-slate-500 dark:text-slate-400 mb-1.5">{label}</p>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-sky-500" />
+          <span className="text-slate-700 dark:text-slate-300">Overall avg</span>
+          <span className="font-bold text-sky-600 dark:text-sky-400 ml-auto">{payload[0]?.value?.toFixed(1)}%</span>
+        </div>
       </div>
     );
   };
@@ -194,31 +188,27 @@ function ProfileChart({ subjects, assessmentEntries }) {
     return (
       <div className="flex flex-col items-center justify-center h-52 text-slate-400 dark:text-slate-600 text-sm gap-2">
         <TrendingUp className="w-8 h-8 opacity-30" />
-        <p>Add assessments to see your profile chart appear here.</p>
+        <p>Add assessments to see your average score trend appear here.</p>
       </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={260}>
       <LineChart data={chartData} margin={{ top: 10, right: 30, left: -10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--chart-axis)' }} tickLine={false} axisLine={false} />
         <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--chart-axis)' }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
         <Tooltip content={<CustomTooltip />} />
-        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
-        {subjects.map(subj => (
-          <Line
-            key={subj.id}
-            type="monotone"
-            dataKey={subj.name}
-            stroke={THEME_COLORS[subj.colorTheme] ?? '#94a3b8'}
-            strokeWidth={2.5}
-            dot={{ r: 3, fill: THEME_COLORS[subj.colorTheme] ?? '#94a3b8', strokeWidth: 0 }}
-            activeDot={{ r: 5 }}
-            connectNulls
-          />
-        ))}
+        <Line
+          type="monotone"
+          dataKey="avg"
+          name="Overall Average"
+          stroke="#0ea5e9"
+          strokeWidth={3}
+          dot={{ r: 4, fill: '#0ea5e9', strokeWidth: 0 }}
+          activeDot={{ r: 6, fill: '#0ea5e9' }}
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -315,20 +305,6 @@ export default function Dashboard({ subjects, syllabusTopics, assessmentEntries,
         <div className="px-4 pb-4 pt-4">
           <ProfileChart subjects={subjects} assessmentEntries={assessmentEntries} />
         </div>
-        {subjects.length > 0 && (
-          <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-4">
-            {subjects.map(subj => (
-              <button key={subj.id} onClick={() => onSelectSubject(subj.id)}
-                className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white group transition-colors">
-                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: THEME_COLORS[subj.colorTheme] }} />
-                <span className="group-hover:underline">{subj.name}</span>
-                <span className="text-slate-400 dark:text-slate-600">
-                  {allSubjectsAnalytics[subj.id]?.subjectStats?.subjectEWMA?.toFixed(0) ?? '—'}%
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
