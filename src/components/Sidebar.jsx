@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, Settings, BookOpen, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { X, Plus, Trash2, Settings, BookOpen, ChevronDown, ChevronRight, RotateCcw, LayoutDashboard } from 'lucide-react';
 
 const COLOR_THEMES = ['sky', 'violet', 'emerald', 'rose', 'amber', 'indigo'];
 
@@ -12,7 +12,7 @@ const themeClasses = {
   indigo: { dot: 'bg-indigo-500', ring: 'ring-indigo-300', active: 'bg-indigo-50 border-indigo-200' },
 };
 
-export default function Sidebar({ subjects, syllabusTopics, activeSubjectId, isOpen, onClose, onSelectSubject, onAddSubject, onUpdateSubject, onDeleteSubject, onAddTopic, onDeleteTopic, onReset, onClearAll }) {
+export default function Sidebar({ subjects, syllabusTopics, activeSubjectId, isOpen, onClose, currentView, onNavigateToDashboard, onSelectSubject, onAddSubject, onUpdateSubject, onDeleteSubject, onAddTopic, onDeleteTopic, onReset, onClearAll }) {
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectTarget, setNewSubjectTarget] = useState('85');
@@ -56,8 +56,19 @@ export default function Sidebar({ subjects, syllabusTopics, activeSubjectId, isO
         </button>
       </div>
 
+      {/* Dashboard home button */}
+      <div className="px-3 pt-2 pb-1">
+        <button
+          onClick={() => { onNavigateToDashboard(); onClose(); }}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${currentView === 'dashboard' ? 'bg-sky-600 text-white border-sky-500' : 'border-transparent text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+        >
+          <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+          All Subjects
+        </button>
+      </div>
+
       {/* Subjects list */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin py-3 px-3 space-y-1">
+      <div className="flex-1 overflow-y-auto scrollbar-thin py-2 px-3 space-y-1">
         <p className="px-2 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Subjects</p>
         {subjects.map(subj => {
           const theme = themeClasses[subj.colorTheme] ?? themeClasses.sky;

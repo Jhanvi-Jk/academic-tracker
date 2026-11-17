@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar.jsx';
 import KPIHeader from './components/KPIHeader.jsx';
 import Tab1Matrix from './components/Tab1_Matrix.jsx';
 import Tab2Analytics from './components/Tab2_Analytics.jsx';
+import Dashboard from './components/Dashboard.jsx';
 
 const STORAGE_KEY = 'academicTrackerV2';
 
@@ -22,6 +23,7 @@ function genId() {
 
 export default function App() {
   const [appData, setAppData] = useState(loadState);
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'subject'
   const [activeTab, setActiveTab] = useState('matrix');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -34,36 +36,50 @@ export default function App() {
   }, []);
 
   const { subjects, syllabusTopics, assessmentEntries, activeSubjectId, terms } = appData;
+
+  // Compute analytics for ALL subjects (for dashboard)
+  const allSubjectsAnalytics = useMemo(() => {
+    return subjects.reduce((acc, subj) => {
+      const subjTopics = syllabusTopics.filter(t => t.subjectId === subj.id);
+      const subjEntries = assessmentEntries.filter(e => e.subjectId === subj.id);
+      const topicStatsMap = {};
+      subjTopics.forEach(topic => {
+        topicStatsMap[topic.id] = computeTopicStats(subjEntries.filter(e => e.topicId === topic.id));
+      });
+      acc[subj.id] = {
+        topicStatsMap,
+        subjectStats: computeSubjectStats(subjEntries, subjTopics),
+        trajectoryData: getTrajectoryData(subjEntries),
+        topics: subjTopics,
+        entries: subjEntries,
+      };
+      return acc;
+    }, {});
+  }, [subjects, syllabusTopics, assessmentEntries]);
+
+  // Active subject derived values
   const activeSubject = subjects.find(s => s.id === activeSubjectId);
-  const activeTopics = useMemo(() => syllabusTopics.filter(t => t.subjectId === activeSubjectId), [syllabusTopics, activeSubjectId]);
-  const activeEntries = useMemo(() => assessmentEntries.filter(e => e.subjectId === activeSubjectId), [assessmentEntries, activeSubjectId]);
-
-  const topicStatsMap = useMemo(() => {
-    const map = {};
-    activeTopics.forEach(topic => {
-      map[topic.id] = computeTopicStats(activeEntries.filter(e => e.topicId === topic.id));
-    });
-    return map;
-  }, [activeTopics, activeEntries]);
-
-  const subjectStats = useMemo(() =>
-    computeSubjectStats(activeEntries, activeTopics),
-    [activeEntries, activeTopics]
-  );
-
-  const trajectoryData = useMemo(() => getTrajectoryData(activeEntries), [activeEntries]);
+  const activeAnalytics = allSubjectsAnalytics[activeSubjectId];
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+  const navigateToDashboard = useCallback(() => {
+    setCurrentView('dashboard');
+    setSidebarOpen(false);
+  }, []);
+
   const setActiveSubject = useCallback((id) => {
     saveAndUpdate(prev => ({ ...prev, activeSubjectId: id }));
+    setCurrentView('subject');
     setActiveTab('matrix');
+    setSidebarOpen(false);
   }, [saveAndUpdate]);
 
   const addSubject = useCallback((name, targetPercentage, colorTheme) => {
+    const id = genId();
     saveAndUpdate(prev => ({
       ...prev,
-      subjects: [...prev.subjects, { id: genId(), name, targetPercentage: Number(targetPercentage) || 85, colorTheme }],
+      subjects: [...prev.subjects, { id, name, targetPercentage: Number(targetPercentage) || 85, colorTheme }],
     }));
   }, [saveAndUpdate]);
 
@@ -85,6 +101,7 @@ export default function App() {
         activeSubjectId: remaining[0]?.id ?? '',
       };
     });
+    setCurrentView('dashboard');
   }, [saveAndUpdate]);
 
   const addTopic = useCallback((subjectId, topicName, unitName = '') => {
@@ -111,10 +128,7 @@ export default function App() {
       totalMarks: Number(entry.totalMarks),
       weight: Number(entry.weight),
     };
-    saveAndUpdate(prev => ({
-      ...prev,
-      assessmentEntries: [...prev.assessmentEntries, newEntry],
-    }));
+    saveAndUpdate(prev => ({ ...prev, assessmentEntries: [...prev.assessmentEntries, newEntry] }));
   }, [saveAndUpdate]);
 
   const updateEntry = useCallback((id, updates) => {
@@ -138,47 +152,48 @@ export default function App() {
       const sample = getSampleData();
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sample)); } catch {}
       setAppData(sample);
-      setActiveTab('matrix');
+      setCurrentView('dashboard');
     }
   }, []);
 
   const clearAll = useCallback(() => {
     if (window.confirm('Start completely fresh? All data will be deleted.')) {
+      const id = genId();
       const blank = {
-        subjects: [{ id: genId(), name: 'My Subject', targetPercentage: 85, colorTheme: 'sky' }],
+        subjects: [{ id, name: 'My Subject', targetPercentage: 85, colorTheme: 'sky' }],
         syllabusTopics: [],
         assessmentEntries: [],
-        activeSubjectId: '',
+        activeSubjectId: id,
         terms: ['Term 1', 'Term 2', 'Term 3', 'Term 4'],
       };
-      blank.activeSubjectId = blank.subjects[0].id;
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(blank)); } catch {}
       setAppData(blank);
+      setCurrentView('dashboard');
     }
   }, []);
 
+  const sidebarProps = {
+    subjects, syllabusTopics, activeSubjectId, isOpen: sidebarOpen,
+    currentView,
+    onClose: () => setSidebarOpen(false),
+    onNavigateToDashboard: navigateToDashboard,
+    onSelectSubject: setActiveSubject,
+    onAddSubject: addSubject,
+    onUpdateSubject: updateSubject,
+    onDeleteSubject: deleteSubject,
+    onAddTopic: addTopic,
+    onDeleteTopic: deleteTopic,
+    onReset: resetToSample,
+    onClearAll: clearAll,
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <Sidebar
-        subjects={subjects}
-        syllabusTopics={syllabusTopics}
-        activeSubjectId={activeSubjectId}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onSelectSubject={setActiveSubject}
-        onAddSubject={addSubject}
-        onUpdateSubject={updateSubject}
-        onDeleteSubject={deleteSubject}
-        onAddTopic={addTopic}
-        onDeleteTopic={deleteTopic}
-        onReset={resetToSample}
-        onClearAll={clearAll}
-      />
+      <Sidebar {...sidebarProps} />
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Mobile header */}
@@ -188,59 +203,77 @@ export default function App() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-semibold text-slate-800">{activeSubject?.name ?? 'Academic Tracker'}</span>
+          <span className="font-semibold text-slate-800">
+            {currentView === 'dashboard' ? 'Academic Tracker' : (activeSubject?.name ?? 'Academic Tracker')}
+          </span>
         </div>
 
         <div className="flex-1 p-4 lg:p-6 max-w-7xl mx-auto w-full">
-          {!activeSubject ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
-              <p className="text-lg font-medium">No subject selected</p>
-              <p className="text-sm">Add a subject from the sidebar to get started.</p>
-            </div>
+          {currentView === 'dashboard' ? (
+            <Dashboard
+              subjects={subjects}
+              syllabusTopics={syllabusTopics}
+              assessmentEntries={assessmentEntries}
+              allSubjectsAnalytics={allSubjectsAnalytics}
+              onSelectSubject={setActiveSubject}
+            />
           ) : (
             <>
-              <KPIHeader
-                subject={activeSubject}
-                subjectStats={subjectStats}
-                topicStatsMap={topicStatsMap}
-                activeTopics={activeTopics}
-              />
+              {/* Back breadcrumb */}
+              <button onClick={navigateToDashboard} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 mb-4 group">
+                <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                All Subjects
+              </button>
 
-              {/* Tabs */}
-              <div className="flex gap-1 mt-5 mb-4 bg-white rounded-xl border border-slate-200 p-1 w-fit">
-                {[['matrix', 'Entry & Matrix'], ['analytics', 'Analytics & Insights']].map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {activeTab === 'matrix' ? (
-                <Tab1Matrix
-                  subject={activeSubject}
-                  topics={activeTopics}
-                  entries={activeEntries}
-                  terms={terms}
-                  topicStatsMap={topicStatsMap}
-                  onAddEntry={addEntry}
-                  onUpdateEntry={updateEntry}
-                  onDeleteEntry={deleteEntry}
-                  onAddTopic={addTopic}
-                />
+              {!activeSubject ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
+                  <p className="text-lg font-medium">No subject selected</p>
+                </div>
               ) : (
-                <Tab2Analytics
-                  subject={activeSubject}
-                  topics={activeTopics}
-                  entries={activeEntries}
-                  terms={terms}
-                  topicStatsMap={topicStatsMap}
-                  subjectStats={subjectStats}
-                  trajectoryData={trajectoryData}
-                />
+                <>
+                  <KPIHeader
+                    subject={activeSubject}
+                    subjectStats={activeAnalytics?.subjectStats}
+                    topicStatsMap={activeAnalytics?.topicStatsMap ?? {}}
+                    activeTopics={activeAnalytics?.topics ?? []}
+                  />
+
+                  <div className="flex gap-1 mt-5 mb-4 bg-white rounded-xl border border-slate-200 p-1 w-fit">
+                    {[['matrix', 'Entry & Matrix'], ['analytics', 'Analytics & Insights']].map(([key, label]) => (
+                      <button key={key} onClick={() => setActiveTab(key)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeTab === 'matrix' ? (
+                    <Tab1Matrix
+                      subject={activeSubject}
+                      topics={activeAnalytics?.topics ?? []}
+                      entries={activeAnalytics?.entries ?? []}
+                      terms={terms}
+                      topicStatsMap={activeAnalytics?.topicStatsMap ?? {}}
+                      onAddEntry={addEntry}
+                      onUpdateEntry={updateEntry}
+                      onDeleteEntry={deleteEntry}
+                      onAddTopic={addTopic}
+                    />
+                  ) : (
+                    <Tab2Analytics
+                      subject={activeSubject}
+                      topics={activeAnalytics?.topics ?? []}
+                      entries={activeAnalytics?.entries ?? []}
+                      terms={terms}
+                      topicStatsMap={activeAnalytics?.topicStatsMap ?? {}}
+                      subjectStats={activeAnalytics?.subjectStats}
+                      trajectoryData={activeAnalytics?.trajectoryData ?? []}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
