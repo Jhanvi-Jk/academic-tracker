@@ -1,89 +1,94 @@
-import { normalizeScore } from './analyticsEngine.js';
-
-function entry(id, subjectId, topicId, term, date, assessmentName, marksObtained, totalMarks, weight, errorTags = []) {
-  return { id, subjectId, topicId, term, date, assessmentName, marksObtained, totalMarks, weight, errorTags, normalizedPercentage: normalizeScore(marksObtained, totalMarks) };
-}
-
 export function getSampleData() {
   const subjects = [
-    { id: 'subj-physics', name: 'IB HL Physics', targetPercentage: 85, colorTheme: 'sky' },
-    { id: 'subj-math',    name: 'HL Mathematics', targetPercentage: 90, colorTheme: 'violet' },
+    { id: 's-phys', name: 'IB Physics HL', targetPercentage: 85, colorTheme: 'sky' },
+    { id: 's-math', name: 'Math AA HL', targetPercentage: 85, colorTheme: 'violet' },
+    { id: 's-eng',  name: 'English Lang & Lit SL', targetPercentage: 80, colorTheme: 'emerald' },
+    { id: 's-fr',   name: 'French Ab Initio', targetPercentage: 75, colorTheme: 'rose' },
+    { id: 's-cs',   name: 'Computer Science SL', targetPercentage: 80, colorTheme: 'amber' },
+    { id: 's-econ', name: 'Economics HL', targetPercentage: 85, colorTheme: 'indigo' },
   ];
 
   const syllabusTopics = [
-    // Physics
-    { id: 't1', subjectId: 'subj-physics', unitName: 'Mechanics', topicName: 'Kinematics' },
-    { id: 't2', subjectId: 'subj-physics', unitName: 'Mechanics', topicName: "Newton's Laws & Dynamics" },
-    { id: 't3', subjectId: 'subj-physics', unitName: 'Mechanics', topicName: 'Work, Energy & Power' },
-    { id: 't4', subjectId: 'subj-physics', unitName: 'Mechanics', topicName: 'Circular Motion & Gravitation' },
-    { id: 't5', subjectId: 'subj-physics', unitName: 'Thermal', topicName: 'Thermal Physics' },
-    { id: 't6', subjectId: 'subj-physics', unitName: 'Waves',   topicName: 'Oscillations & Waves' },
-    { id: 't7', subjectId: 'subj-physics', unitName: 'Modern',  topicName: 'Nuclear Physics' },
-    { id: 't8', subjectId: 'subj-physics', unitName: 'Modern',  topicName: 'Quantum & Modern Physics' },
-    // Math
-    { id: 'm1', subjectId: 'subj-math', unitName: 'Calculus',    topicName: 'Differentiation' },
-    { id: 'm2', subjectId: 'subj-math', unitName: 'Calculus',    topicName: 'Integration' },
-    { id: 'm3', subjectId: 'subj-math', unitName: 'Statistics',  topicName: 'Statistics & Probability' },
-    { id: 'm4', subjectId: 'subj-math', unitName: 'Algebra',     topicName: 'Vectors & Matrices' },
-  ];
+    // ── IB Physics HL ───────────────────────────────────────────────────────
+    // Core Topics
+    { id: 'ph-1',  subjectId: 's-phys', unitName: 'Core', topicName: 'T1 – Measurements & Uncertainties', upcoming: false },
+    { id: 'ph-2',  subjectId: 's-phys', unitName: 'Core', topicName: 'T2 – Mechanics', upcoming: false },
+    { id: 'ph-3',  subjectId: 's-phys', unitName: 'Core', topicName: 'T3 – Thermal Physics', upcoming: false },
+    { id: 'ph-4',  subjectId: 's-phys', unitName: 'Core', topicName: 'T4 – Waves', upcoming: false },
+    { id: 'ph-5',  subjectId: 's-phys', unitName: 'Core', topicName: 'T5 – Electricity & Magnetism', upcoming: false },
+    { id: 'ph-6',  subjectId: 's-phys', unitName: 'Core', topicName: 'T6 – Circular Motion & Gravitation', upcoming: false },
+    { id: 'ph-7',  subjectId: 's-phys', unitName: 'Core', topicName: 'T7 – Atomic, Nuclear & Particle Physics', upcoming: true },
+    { id: 'ph-8',  subjectId: 's-phys', unitName: 'Core', topicName: 'T8 – Energy Production', upcoming: true },
+    // Additional Higher Level
+    { id: 'ph-9',  subjectId: 's-phys', unitName: 'Additional HL', topicName: 'T9 – Wave Phenomena', upcoming: true },
+    { id: 'ph-10', subjectId: 's-phys', unitName: 'Additional HL', topicName: 'T10 – Fields', upcoming: true },
+    { id: 'ph-11', subjectId: 's-phys', unitName: 'Additional HL', topicName: 'T11 – Electromagnetic Induction', upcoming: true },
+    { id: 'ph-12', subjectId: 's-phys', unitName: 'Additional HL', topicName: 'T12 – Quantum & Nuclear Physics', upcoming: true },
+    // Papers
+    { id: 'ph-p1', subjectId: 's-phys', unitName: 'Papers', topicName: 'Paper 1 – MCQ (1h)', upcoming: false },
+    { id: 'ph-p2', subjectId: 's-phys', unitName: 'Papers', topicName: 'Paper 2 – Short & Extended (2h15)', upcoming: false },
+    { id: 'ph-p3', subjectId: 's-phys', unitName: 'Papers', topicName: 'Paper 3 – Option & Data (1h15)', upcoming: true },
+    { id: 'ph-ia', subjectId: 's-phys', unitName: 'Papers', topicName: 'Internal Assessment (IA)', upcoming: false },
 
-  const assessmentEntries = [
-    // t1 Kinematics → MASTERED (EWMA ~92%)
-    entry('e1',  'subj-physics', 't1', 'Term 1', '2026-02-10', 'FA 1 – Kinematics Quiz',         42, 50, 2, ['Careless / Calculation']),
-    entry('e2',  'subj-physics', 't1', 'Term 2', '2026-04-25', 'FA 2 – Projectile Motion',        44, 50, 2, []),
-    entry('e3',  'subj-physics', 't1', 'Term 3', '2026-08-15', 'Major Physics Test (Mech)',        85, 90, 3, []),
-    entry('e4',  'subj-physics', 't1', 'Term 4', '2026-11-05', 'FA 4 – Kinematics Review',        46, 50, 2, []),
+    // ── Math AA HL ───────────────────────────────────────────────────────────
+    { id: 'ma-1',  subjectId: 's-math', unitName: 'Topics', topicName: 'T1 – Number & Algebra', upcoming: false },
+    { id: 'ma-2',  subjectId: 's-math', unitName: 'Topics', topicName: 'T2 – Functions', upcoming: false },
+    { id: 'ma-3',  subjectId: 's-math', unitName: 'Topics', topicName: 'T3 – Geometry & Trigonometry', upcoming: false },
+    { id: 'ma-4',  subjectId: 's-math', unitName: 'Topics', topicName: 'T4 – Statistics & Probability', upcoming: false },
+    { id: 'ma-5',  subjectId: 's-math', unitName: 'Topics', topicName: 'T5 – Calculus', upcoming: false },
+    { id: 'ma-p1', subjectId: 's-math', unitName: 'Papers', topicName: 'Paper 1 – No Calculator (2h)', upcoming: false },
+    { id: 'ma-p2', subjectId: 's-math', unitName: 'Papers', topicName: 'Paper 2 – Calculator (2h)', upcoming: false },
+    { id: 'ma-p3', subjectId: 's-math', unitName: 'Papers', topicName: 'Paper 3 – Investigation (1h)', upcoming: true },
+    { id: 'ma-ia', subjectId: 's-math', unitName: 'Papers', topicName: 'Internal Assessment (IA – Exploration)', upcoming: false },
 
-    // t2 Newton's Laws → MASTERED (EWMA ~97%)
-    entry('e5',  'subj-physics', 't2', 'Term 1', '2026-02-20', 'FA 1 – Newton\'s Laws Quiz',      48, 50, 2, []),
-    entry('e6',  'subj-physics', 't2', 'Term 2', '2026-05-10', 'FA 2 – Dynamics & Forces',        44, 45, 2, []),
-    entry('e7',  'subj-physics', 't2', 'Term 4', '2026-11-08', 'FA 3 – Mechanics Major Test',     88, 90, 3, []),
+    // ── English Lang & Lit SL ───────────────────────────────────────────────
+    // Assessment components (tracked instead of content topics)
+    { id: 'en-p1', subjectId: 's-eng', unitName: 'Assessment', topicName: 'Paper 1 – Guided Literary Analysis (1h15)', upcoming: false },
+    { id: 'en-p2', subjectId: 's-eng', unitName: 'Assessment', topicName: 'Paper 2 – Comparative Essay (1h45)', upcoming: false },
+    { id: 'en-io', subjectId: 's-eng', unitName: 'Assessment', topicName: 'Individual Oral (IO – 15 min)', upcoming: false },
+    { id: 'en-lp', subjectId: 's-eng', unitName: 'Assessment', topicName: 'Learner Portfolio', upcoming: false },
+    // Skills
+    { id: 'en-s1', subjectId: 's-eng', unitName: 'Skills', topicName: 'Textual Analysis (non-literary)', upcoming: false },
+    { id: 'en-s2', subjectId: 's-eng', unitName: 'Skills', topicName: 'Literary Commentary', upcoming: false },
+    { id: 'en-s3', subjectId: 's-eng', unitName: 'Skills', topicName: 'Comparative Essay Writing', upcoming: false },
 
-    // t3 Work & Energy → IMPROVING (EWMA ~73%, velocity +12.5)
-    entry('e8',  'subj-physics', 't3', 'Term 2', '2026-05-15', 'FA 1 – Energy Concepts',          50, 80, 3, ['Conceptual Gap', 'Time Management']),
-    entry('e9',  'subj-physics', 't3', 'Term 4', '2026-11-10', 'FA 2 – Work-Energy Theorem',      60, 80, 3, ['Conceptual Gap']),
+    // ── French Ab Initio ────────────────────────────────────────────────────
+    { id: 'fr-p1', subjectId: 's-fr', unitName: 'Papers', topicName: 'Paper 1 – Reading & Writing (1h30)', upcoming: false },
+    { id: 'fr-p2', subjectId: 's-fr', unitName: 'Papers', topicName: 'Paper 2 – Listening (45 min)', upcoming: false },
+    { id: 'fr-io', subjectId: 's-fr', unitName: 'Papers', topicName: 'Individual Oral – Speaking', upcoming: false },
+    // IB Prescribed Themes
+    { id: 'fr-t1', subjectId: 's-fr', unitName: 'Themes', topicName: 'Identités (Identities)', upcoming: false },
+    { id: 'fr-t2', subjectId: 's-fr', unitName: 'Themes', topicName: 'Expériences (Experiences)', upcoming: false },
+    { id: 'fr-t3', subjectId: 's-fr', unitName: 'Themes', topicName: 'Ingéniosité Humaine (Human Ingenuity)', upcoming: false },
+    { id: 'fr-t4', subjectId: 's-fr', unitName: 'Themes', topicName: 'Organisation Sociale (Social Organisation)', upcoming: true },
+    { id: 'fr-t5', subjectId: 's-fr', unitName: 'Themes', topicName: 'Partager la Planète (Sharing the Planet)', upcoming: true },
 
-    // t4 Circular Motion → CRITICAL GAP (EWMA ~56%)
-    entry('e10', 'subj-physics', 't4', 'Term 1', '2026-02-10', 'FA 1 – Circular Motion Quiz',     25, 50, 2, ['Conceptual Gap', 'Misread Question']),
-    entry('e11', 'subj-physics', 't4', 'Term 2', '2026-04-15', 'FA 2 – Gravity & Orbits',         22, 50, 2, ['Conceptual Gap']),
-    entry('e12', 'subj-physics', 't4', 'Term 3', '2026-07-20', 'FA 3 – Orbital Mechanics',        30, 50, 2, ['Conceptual Gap']),
-    entry('e13', 'subj-physics', 't4', 'Term 4', '2026-10-25', 'FA 4 – Circular Motion Review',   28, 50, 2, ['Conceptual Gap', 'Careless / Calculation']),
+    // ── Computer Science SL ─────────────────────────────────────────────────
+    { id: 'cs-1',  subjectId: 's-cs', unitName: 'Core Topics', topicName: 'T1 – System Fundamentals', upcoming: false },
+    { id: 'cs-2',  subjectId: 's-cs', unitName: 'Core Topics', topicName: 'T2 – Computer Organisation', upcoming: false },
+    { id: 'cs-3',  subjectId: 's-cs', unitName: 'Core Topics', topicName: 'T3 – Networks', upcoming: false },
+    { id: 'cs-4',  subjectId: 's-cs', unitName: 'Core Topics', topicName: 'T4 – Computational Thinking & Algorithms', upcoming: false },
+    { id: 'cs-d',  subjectId: 's-cs', unitName: 'Option', topicName: 'Option D – Object-Oriented Programming', upcoming: false },
+    { id: 'cs-p1', subjectId: 's-cs', unitName: 'Papers', topicName: 'Paper 1 – Theory (1h30)', upcoming: false },
+    { id: 'cs-p2', subjectId: 's-cs', unitName: 'Papers', topicName: 'Paper 2 – OOP & Case Study (1h)', upcoming: true },
+    { id: 'cs-ia', subjectId: 's-cs', unitName: 'Papers', topicName: 'Internal Assessment (IA – Solution)', upcoming: false },
 
-    // t5 Thermal Physics → AT RISK (high hist avg ~84%, recent sharp drop to 64%)
-    entry('e14', 'subj-physics', 't5', 'Term 1', '2026-02-25', 'FA 1 – Heat & Temperature',       42, 50, 2, []),
-    entry('e15', 'subj-physics', 't5', 'Term 2', '2026-05-05', 'FA 2 – Gas Laws',                 44, 50, 2, []),
-    entry('e16', 'subj-physics', 't5', 'Term 3', '2026-08-20', 'Major Thermo Test',               76, 80, 3, []),
-    entry('e17', 'subj-physics', 't5', 'Term 4', '2026-11-02', 'FA 4 – Thermo Review (poor)',     32, 50, 2, ['Careless / Calculation', 'Time Management']),
-
-    // t6 Oscillations & Waves → MASTERED but STALE (last assessed 2026-10-01, 47 days ago)
-    entry('e18', 'subj-physics', 't6', 'Term 2', '2026-05-20', 'FA 1 – Wave Properties',          65, 80, 3, []),
-    entry('e19', 'subj-physics', 't6', 'Term 3', '2026-07-15', 'FA 2 – Oscillations Test',        68, 80, 3, []),
-    entry('e20', 'subj-physics', 't6', 'Term 4', '2026-10-01', 'FA 3 – SHM Review',               51, 60, 2, []),
-
-    // t7, t8 → UNTESTED (no entries)
-
-    // m1 Differentiation → MASTERED
-    entry('em1', 'subj-math', 'm1', 'Term 1', '2026-01-20', 'FA 1 – Derivatives',                 45, 50, 2, []),
-    entry('em2', 'subj-math', 'm1', 'Term 2', '2026-03-15', 'FA 2 – Chain Rule & Applications',   48, 50, 2, []),
-    entry('em3', 'subj-math', 'm1', 'Term 2', '2026-05-10', 'Major Calculus Test',                88, 90, 3, []),
-
-    // m2 Integration → AT RISK (was strong, recent bad drop)
-    entry('em4', 'subj-math', 'm2', 'Term 1', '2026-01-25', 'FA 1 – Basic Integration',           38, 50, 2, ['Conceptual Gap']),
-    entry('em5', 'subj-math', 'm2', 'Term 2', '2026-03-10', 'FA 2 – Integration Techniques',      42, 50, 2, []),
-    entry('em6', 'subj-math', 'm2', 'Term 2', '2026-05-05', 'Major Integration Test',             72, 80, 3, []),
-    entry('em7', 'subj-math', 'm2', 'Term 4', '2026-10-20', 'FA 4 – Integration Review',         55, 80, 3, ['Conceptual Gap', 'Time Management']),
-
-    // m3 Statistics → CRITICAL GAP
-    entry('em8', 'subj-math', 'm3', 'Term 2', '2026-04-05', 'FA 1 – Probability Basics',          28, 50, 2, ['Conceptual Gap', 'Misread Question']),
-    entry('em9', 'subj-math', 'm3', 'Term 3', '2026-06-20', 'FA 2 – Distributions',               24, 50, 2, ['Conceptual Gap']),
-    // m4 Vectors → UNTESTED
+    // ── Economics HL ────────────────────────────────────────────────────────
+    { id: 'ec-1',  subjectId: 's-econ', unitName: 'Content', topicName: 'Section 1 – Microeconomics', upcoming: false },
+    { id: 'ec-2',  subjectId: 's-econ', unitName: 'Content', topicName: 'Section 2 – Macroeconomics', upcoming: false },
+    { id: 'ec-3',  subjectId: 's-econ', unitName: 'Content', topicName: 'Section 3 – International Economics', upcoming: true },
+    { id: 'ec-4',  subjectId: 's-econ', unitName: 'Content', topicName: 'Section 4 – Development Economics', upcoming: true },
+    { id: 'ec-p1', subjectId: 's-econ', unitName: 'Papers', topicName: 'Paper 1 – Extended Response (1h30+)', upcoming: false },
+    { id: 'ec-p2', subjectId: 's-econ', unitName: 'Papers', topicName: 'Paper 2 – Data Response (1h45)', upcoming: false },
+    { id: 'ec-p3', subjectId: 's-econ', unitName: 'Papers', topicName: 'Paper 3 – Policy Paper HL (1h45)', upcoming: true },
+    { id: 'ec-ia', subjectId: 's-econ', unitName: 'Papers', topicName: 'Internal Assessment (3 Commentaries)', upcoming: false },
   ];
 
   return {
     subjects,
     syllabusTopics,
-    assessmentEntries,
-    activeSubjectId: 'subj-physics',
+    assessmentEntries: [],
+    activeSubjectId: 's-phys',
     terms: ['Term 1', 'Term 2', 'Term 3', 'Term 4'],
   };
 }

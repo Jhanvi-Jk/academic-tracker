@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { getSampleData } from './utils/sampleData.js';
 import { normalizeScore, computeTopicStats, computeSubjectStats, getTrajectoryData } from './utils/analyticsEngine.js';
 import Sidebar from './components/Sidebar.jsx';
@@ -7,11 +7,16 @@ import Tab1Matrix from './components/Tab1_Matrix.jsx';
 import Tab2Analytics from './components/Tab2_Analytics.jsx';
 import Dashboard from './components/Dashboard.jsx';
 
-const STORAGE_KEY = 'academicTrackerV2';
+const STORAGE_KEY = 'academicTrackerV3';
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
+    // Also try old key and migrate
+    if (!raw) {
+      const old = localStorage.getItem('academicTrackerV2');
+      if (old) return JSON.parse(old);
+    }
     if (raw) return JSON.parse(raw);
   } catch {}
   return getSampleData();
@@ -23,9 +28,27 @@ function genId() {
 
 export default function App() {
   const [appData, setAppData] = useState(loadState);
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'subject'
+  const [currentView, setCurrentView] = useState('dashboard');
   const [activeTab, setActiveTab] = useState('matrix');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Dark mode — default to system preference if no saved preference
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
+
+  const toggleDarkMode = useCallback(() => setDarkMode(d => !d), []);
 
   const saveAndUpdate = useCallback((updater) => {
     setAppData(prev => {
@@ -37,7 +60,6 @@ export default function App() {
 
   const { subjects, syllabusTopics, assessmentEntries, activeSubjectId, terms } = appData;
 
-  // Compute analytics for ALL subjects (for dashboard)
   const allSubjectsAnalytics = useMemo(() => {
     return subjects.reduce((acc, subj) => {
       const subjTopics = syllabusTopics.filter(t => t.subjectId === subj.id);
@@ -57,11 +79,8 @@ export default function App() {
     }, {});
   }, [subjects, syllabusTopics, assessmentEntries]);
 
-  // Active subject derived values
   const activeSubject = subjects.find(s => s.id === activeSubjectId);
   const activeAnalytics = allSubjectsAnalytics[activeSubjectId];
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const navigateToDashboard = useCallback(() => {
     setCurrentView('dashboard');
@@ -107,7 +126,7 @@ export default function App() {
   const addTopic = useCallback((subjectId, topicName, unitName = '') => {
     saveAndUpdate(prev => ({
       ...prev,
-      syllabusTopics: [...prev.syllabusTopics, { id: genId(), subjectId, topicName, unitName }],
+      syllabusTopics: [...prev.syllabusTopics, { id: genId(), subjectId, topicName, unitName, upcoming: false }],
     }));
   }, [saveAndUpdate]);
 
@@ -116,6 +135,15 @@ export default function App() {
       ...prev,
       syllabusTopics: prev.syllabusTopics.filter(t => t.id !== topicId),
       assessmentEntries: prev.assessmentEntries.filter(e => e.topicId !== topicId),
+    }));
+  }, [saveAndUpdate]);
+
+  const toggleTopicUpcoming = useCallback((topicId) => {
+    saveAndUpdate(prev => ({
+      ...prev,
+      syllabusTopics: prev.syllabusTopics.map(t =>
+        t.id === topicId ? { ...t, upcoming: !t.upcoming } : t
+      ),
     }));
   }, [saveAndUpdate]);
 
@@ -148,7 +176,7 @@ export default function App() {
   }, [saveAndUpdate]);
 
   const resetToSample = useCallback(() => {
-    if (window.confirm('This will clear all your data and reload the demo dataset. Continue?')) {
+    if (window.confirm('Reset to your IB subject setup? This clears all assessment data.')) {
       const sample = getSampleData();
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sample)); } catch {}
       setAppData(sample);
@@ -157,7 +185,7 @@ export default function App() {
   }, []);
 
   const clearAll = useCallback(() => {
-    if (window.confirm('Start completely fresh? All data will be deleted.')) {
+    if (window.confirm('Start completely fresh? All subjects and data will be deleted.')) {
       const id = genId();
       const blank = {
         subjects: [{ id, name: 'My Subject', targetPercentage: 85, colorTheme: 'sky' }],
@@ -174,7 +202,7 @@ export default function App() {
 
   const sidebarProps = {
     subjects, syllabusTopics, activeSubjectId, isOpen: sidebarOpen,
-    currentView,
+    currentView, darkMode,
     onClose: () => setSidebarOpen(false),
     onNavigateToDashboard: navigateToDashboard,
     onSelectSubject: setActiveSubject,
@@ -183,27 +211,29 @@ export default function App() {
     onDeleteSubject: deleteSubject,
     onAddTopic: addTopic,
     onDeleteTopic: deleteTopic,
+    onToggleTopicUpcoming: toggleTopicUpcoming,
+    onToggleDark: toggleDarkMode,
     onReset: resetToSample,
     onClearAll: clearAll,
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex transition-colors duration-200">
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       <Sidebar {...sidebarProps} />
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Mobile header */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 sticky top-0 z-10">
-          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-slate-100">
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-semibold text-slate-800">
+          <span className="font-semibold text-slate-800 dark:text-slate-200">
             {currentView === 'dashboard' ? 'Academic Tracker' : (activeSubject?.name ?? 'Academic Tracker')}
           </span>
         </div>
@@ -219,8 +249,7 @@ export default function App() {
             />
           ) : (
             <>
-              {/* Back breadcrumb */}
-              <button onClick={navigateToDashboard} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 mb-4 group">
+              <button onClick={navigateToDashboard} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-4 group">
                 <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
@@ -240,10 +269,10 @@ export default function App() {
                     activeTopics={activeAnalytics?.topics ?? []}
                   />
 
-                  <div className="flex gap-1 mt-5 mb-4 bg-white rounded-xl border border-slate-200 p-1 w-fit">
+                  <div className="flex gap-1 mt-5 mb-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-1 w-fit">
                     {[['matrix', 'Entry & Matrix'], ['analytics', 'Analytics & Insights']].map(([key, label]) => (
                       <button key={key} onClick={() => setActiveTab(key)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === key ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                       >
                         {label}
                       </button>

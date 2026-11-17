@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased;
   }
 }
 
@@ -13,4 +16,17 @@
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
   }
+  .dark .scrollbar-thin {
+    scrollbar-color: #334155 transparent;
+  }
+}
+
+/* Chart CSS variables – used by Recharts components */
+:root {
+  --chart-grid: #f1f5f9;
+  --chart-axis: #94a3b8;
+}
+html.dark {
+  --chart-grid: #1e293b;
+  --chart-axis: #475569;
 }

@@ -32,7 +32,6 @@ export function calculateVelocity(assessments) {
   const sorted = [...assessments].sort((a, b) => new Date(a.date) - new Date(b.date));
   const latestScore = sorted[sorted.length - 1].normalizedPercentage;
 
-  // EWMA up to second-to-last entry
   let prevEWMA = sorted[0].normalizedPercentage;
   for (let i = 1; i < sorted.length - 1; i++) {
     const a = effectiveAlpha(sorted[i].weight);
@@ -138,9 +137,10 @@ export function getStalenessInfo(lastAssessedDate, threshold = 30) {
 }
 
 export function getTopicPriorityQueue(topicStatsMap, syllabusTopics) {
-  const now = new Date();
   return syllabusTopics
     .map(topic => {
+      // Skip upcoming topics and untested topics
+      if (topic.upcoming) return null;
       const stats = topicStatsMap[topic.id];
       if (!stats || stats.quadrant === 'untested') return null;
       const { isStale, daysAgo } = getStalenessInfo(stats.lastAssessedDate);
@@ -193,17 +193,26 @@ export function getTrajectoryData(assessments) {
 }
 
 export const QUADRANT_META = {
-  mastered:      { label: 'Mastered',       color: 'emerald', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', dot: 'bg-emerald-500' },
-  improving:     { label: 'Improving',      color: 'sky',     bg: 'bg-sky-100',     text: 'text-sky-800',     border: 'border-sky-300',     dot: 'bg-sky-500' },
-  at_risk:       { label: 'At Risk',        color: 'amber',   bg: 'bg-amber-100',   text: 'text-amber-800',   border: 'border-amber-300',   dot: 'bg-amber-500' },
-  critical_gap:  { label: 'Critical Gap',   color: 'rose',    bg: 'bg-rose-100',    text: 'text-rose-800',    border: 'border-rose-300',    dot: 'bg-rose-500' },
-  untested:      { label: 'Untested',       color: 'zinc',    bg: 'bg-zinc-100',    text: 'text-zinc-500',    border: 'border-zinc-200',    dot: 'bg-zinc-400' },
+  mastered:     { label: 'Mastered',    color: 'emerald', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-800 dark:text-emerald-300', border: 'border-emerald-300 dark:border-emerald-700', dot: 'bg-emerald-500' },
+  improving:    { label: 'Improving',   color: 'sky',     bg: 'bg-sky-100 dark:bg-sky-900/40',         text: 'text-sky-800 dark:text-sky-300',           border: 'border-sky-300 dark:border-sky-700',         dot: 'bg-sky-500' },
+  at_risk:      { label: 'At Risk',     color: 'amber',   bg: 'bg-amber-100 dark:bg-amber-900/40',     text: 'text-amber-800 dark:text-amber-300',       border: 'border-amber-300 dark:border-amber-700',     dot: 'bg-amber-500' },
+  critical_gap: { label: 'Critical Gap',color: 'rose',    bg: 'bg-rose-100 dark:bg-rose-900/40',       text: 'text-rose-800 dark:text-rose-300',         border: 'border-rose-300 dark:border-rose-700',       dot: 'bg-rose-500' },
+  untested:     { label: 'Untested',    color: 'zinc',    bg: 'bg-zinc-100 dark:bg-zinc-800',          text: 'text-zinc-500 dark:text-zinc-400',         border: 'border-zinc-200 dark:border-zinc-700',       dot: 'bg-zinc-400' },
+  upcoming:     { label: 'Coming Up',   color: 'zinc',    bg: 'bg-slate-100 dark:bg-slate-800',        text: 'text-slate-400 dark:text-slate-500',       border: 'border-slate-200 dark:border-slate-700',     dot: 'bg-slate-300 dark:bg-slate-600' },
 };
 
+// Returns the display quadrant, taking `upcoming` flag into account
+export function getEffectiveQuadrant(stats, topic) {
+  if (topic?.upcoming && (!stats || stats.quadrant === 'untested')) {
+    return 'upcoming';
+  }
+  return stats?.quadrant ?? 'untested';
+}
+
 export function getHeatmapStyle(value) {
-  if (value === null || value === undefined) return 'bg-zinc-50 text-zinc-400';
-  if (value >= 85) return 'bg-emerald-50 text-emerald-800 font-semibold';
-  if (value >= 70) return 'bg-yellow-50 text-yellow-800';
-  if (value >= 55) return 'bg-amber-50 text-amber-800';
-  return 'bg-rose-50 text-rose-800 font-semibold';
+  if (value === null || value === undefined) return 'bg-zinc-50 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-600';
+  if (value >= 85) return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-semibold';
+  if (value >= 70) return 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
+  if (value >= 55) return 'bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300';
+  return 'bg-rose-50 dark:bg-rose-900/30 text-rose-800 dark:text-rose-300 font-semibold';
 }
