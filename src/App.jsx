@@ -10,13 +10,10 @@ import Dashboard from './components/Dashboard.jsx';
 const STORAGE_KEY = 'academicTrackerV3';
 
 function loadState() {
+  // Clear any stale data from old versions
+  ['academicTracker', 'academicTrackerV2'].forEach(k => localStorage.removeItem(k));
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    // Also try old key and migrate
-    if (!raw) {
-      const old = localStorage.getItem('academicTrackerV2');
-      if (old) return JSON.parse(old);
-    }
     if (raw) return JSON.parse(raw);
   } catch {}
   return getSampleData();
